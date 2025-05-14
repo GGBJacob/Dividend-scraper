@@ -1,29 +1,38 @@
-import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.Locale;
+import java.util.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
-public class Company implements Serializable{
+public class Company{
 
     public String name;
     public String fullName;
     public String sector;
+    @JsonFormat
+    (pattern = "dd MMM yyyy")
     public Date exDividendDate;
+    @JsonFormat
+    (pattern = "dd MMM yyyy")
     public Date dividendDate;
     public float price;
+    public String marketHref;
     public float dividendPerShare;
+    public Set<String> tags;
+
+    public Company(){}
 
     public static class Builder
     {
         private final String name;
         private final String fullName;
+        private String marketHref;
         private String sector;
         private Date exDividendDate;
         private Date dividendDate;
         private float price;
         private float dividendPerShare;
+        private Set<String> tags = new HashSet<>();
 
         public Builder(String name, String fullName) {
             this.name = name;
@@ -56,6 +65,26 @@ public class Company implements Serializable{
             return this;
         }
 
+        public Builder tags(Set<String> tags) {
+            this.tags = tags;
+            return this;
+        }
+
+        public Builder addTag(String tag) {
+            this.tags.add(tag);
+            return this;
+        }
+
+        public Builder addTags(List<String> tags) {
+            this.tags.addAll(tags);
+            return this;
+        }
+
+        public Builder marketHref(String marketHref) {
+            this.marketHref = marketHref;
+            return this;
+        }
+
         public Company build() {
             return new Company(this);
         }
@@ -66,9 +95,11 @@ public class Company implements Serializable{
         this.fullName = builder.fullName;
         this.sector = builder.sector;
         this.price = builder.price;
+        this.marketHref = builder.marketHref;
         this.dividendPerShare = builder.dividendPerShare;
         this.exDividendDate = builder.exDividendDate;
         this.dividendDate = builder.dividendDate;
+        this.tags = builder.tags;
     }
 
     public String getExDividendDate() {

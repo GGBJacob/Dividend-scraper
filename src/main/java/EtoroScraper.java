@@ -176,7 +176,6 @@ public class EtoroScraper
                 companies.put(extractedCompany.fullName, extractedCompany);
                 executor.submit(() -> fetchCompanyPrice(extractedCompany.marketHref, extractedCompany.fullName));
             }
-            progressTracker.incrementCompaniesProcessed();
         }
 
         executor.shutdown();
@@ -314,7 +313,6 @@ public class EtoroScraper
         catch(Exception e)
         {
             System.out.println("Failed to load companies from file!");
-            e.printStackTrace();
             return false;
         }
     }

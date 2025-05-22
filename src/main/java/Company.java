@@ -122,6 +122,10 @@ public class Company{
         return fullName;
     }
 
+    public double getPrice(){return price;}
+
+    public double getDividendPerShare() {return dividendPerShare;}
+
     @Override
     public String toString() {
         return "Company [name=" + name + ", fullName=" + fullName + ", sector=" + sector

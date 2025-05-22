@@ -1,6 +1,6 @@
 public class Main {
     public static void main(String[] args){
-        EtoroScraper scraper = new EtoroScraper();
-        scraper.printBestDividendStocks();
+        Client client = new Client();
+        client.startClient();
     }
 }

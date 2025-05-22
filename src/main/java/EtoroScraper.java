@@ -22,8 +22,7 @@ public class EtoroScraper
 {
     private final String fullUrl = "https://www.etoro.com";
     private final String url = "https://www.etoro.com/investing/dividend-calendar/";
-    private Map<String,Company> companies = new LinkedHashMap<>();
-    private final int[] columnWidths = {50, 30, 20, 20, 20, 35};
+    public Map<String,Company> companies = new LinkedHashMap<>();
     private ProgressTracker progressTracker;
 
 
@@ -141,11 +140,11 @@ public class EtoroScraper
     {
         System.out.println("Removing outdated companies...");
         Date currentDate = new Date(System.currentTimeMillis());
-        for (Company company : companies.values())
-        {
-            if(company.dividendDate.before(currentDate))
-            {
-                companies.remove(company.fullName);
+        Iterator<Map.Entry<String, Company>> iterator = companies.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Company> entry = iterator.next();
+            if (entry.getValue().dividendDate.before(currentDate)) {
+                iterator.remove();
             }
         }
         System.out.println("Removed outdated companies.");
@@ -207,100 +206,7 @@ public class EtoroScraper
         }
     }
 
-    private void printTableHeader() {
-        String[] rowTitles = {"Company", "Dividend Yield (after tax)", "Price", "ExDividend date", "Dividend date", "Dividend per share (after tax)" };
-
-        StringBuilder header = new StringBuilder();
-        StringBuilder separator = new StringBuilder();
-
-        for (int i = 0; i < rowTitles.length; i++) {
-            int width = columnWidths[i];
-            String title = rowTitles[i];
-            int padding = (width - title.length()) / 2;
-            String formatted = String.format("%" + padding + "s%s%" + (width - padding - title.length()) + "s", "", title, "");
-            header.append(formatted);
-            if (i != rowTitles.length - 1)
-                header.append(" | ");
-
-            separator.append("-".repeat(width));
-            if (i != rowTitles.length - 1)
-                separator.append("-+-");
-        }
-
-        System.out.println("\n\n" + header);
-        System.out.println(separator);
-
-    }
-
-    private void printRow(Company company)
-    {
-        final String RESET = "\u001B[0m";
-        final String RED = "\u001B[31m";
-        final String GREEN = "\u001B[32m";
-        final String YELLOW = "\u001B[33m";
-        final String BLUE = "\u001B[34m";
-        String dividendReturn;
-        float dividendTax = 0.1f;
-
-        if(company.price > 0)
-        {
-            float returnValue = company.dividendPerShare / company.price * 100;
-            dividendReturn = String.format("%.2f%% (%.2f%%)", returnValue, returnValue-returnValue* dividendTax);
-        }
-        else {
-            dividendReturn = "-";
-        }
-
-        String[] values = {
-                company.fullName,
-                dividendReturn,
-                String.format("%.2f", company.price),
-                company.getExDividendDate(),
-                company.getDividendDate(),
-                String.format("%.2f (%.2f)", company.dividendPerShare, company.dividendPerShare - company.dividendPerShare* dividendTax),
-        };
-
-        StringBuilder row = new StringBuilder();
-        for (int i = 0; i < values.length; i++) {
-            String value =values[i];
-            int padding = max(0, columnWidths[i] - value.length());
-            if (padding %2 == 0)
-                row.append(" ".repeat(padding/2));
-            else
-                row.append(" ".repeat(padding/2 + 1));
-            row.append(value);
-            row.append(" ".repeat(padding/2));
-
-            if (i != values.length - 1)
-                row.append(" | ");
-        }
-
-        if(company.tags.contains("NEW"))
-            System.out.println(GREEN + row + RESET);
-        else
-            System.out.println(row);
-    }
-
-    private void sortCompaniesByReturn()
-    {
-        companies = companies.values().stream()
-                .sorted((o1, o2) -> {
-                    float ratio1 = o1.price == 0f ? 0f : o1.dividendPerShare/ o1.price;
-                    float ratio2 = o2.price == 0f ? 0f : o2.dividendPerShare / o2.price;
-                    int result = Float.compare(ratio2, ratio1);
-                    if (result == 0)
-                        return Float.compare(o2.price, o1.price);
-                    return result;
-                })
-                .collect(Collectors.toMap(
-                        Company::getFullName,
-                        Function.identity(),
-                        (e1, e2) -> e1,
-                        LinkedHashMap::new
-                ));
-    }
-
-    public boolean loadCompanies()
+    public void loadCompanies()
     {
         System.out.println("Loading companies...");
         ObjectMapper objectMapper = new ObjectMapper();
@@ -308,30 +214,14 @@ public class EtoroScraper
             TypeReference<Map<String, Company>> typeRef = new TypeReference<>() {};
             this.companies = objectMapper.readValue(new File("companies.json"), typeRef);
             System.out.println("Companies successfully loaded.");
-            return true;
+            updateCompanies();
         }
         catch(Exception e)
         {
             System.out.println("Failed to load companies from file!");
-            return false;
-        }
-    }
-
-    public void printBestDividendStocks()
-    {
-        if (!loadCompanies())
             extractCompanies();
-        else
-            updateCompanies();
-
-        sortCompaniesByReturn();
-
-        printTableHeader();
-
-        for(Company company : companies.values())
-        {
-            printRow(company);
         }
     }
+
 
 }

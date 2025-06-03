@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("application")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "org.example"
@@ -18,11 +19,17 @@ dependencies {
 }
 
 application {
-    mainClass = "Main"
+    mainClass = "etoro.Main"
 }
 
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = application.mainClass
+    }
 }
 
 tasks.test {

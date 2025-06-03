@@ -1,3 +1,5 @@
+package etoro;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProgressTracker {

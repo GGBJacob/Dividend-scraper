@@ -1,3 +1,5 @@
+package etoro;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -102,7 +104,18 @@ public class Company{
         this.tags = builder.tags;
     }
 
-    public String getExDividendDate() {
+    public Date getExDividendDate()
+    {
+        return exDividendDate;
+    }
+
+    public Date getDividendDate()
+    {
+        return dividendDate;
+    }
+
+
+    public String getExDividendDateString() {
         LocalDate date = exDividendDate.toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate();
@@ -110,7 +123,7 @@ public class Company{
         return date.format(formatter);
     }
 
-    public String getDividendDate() {
+    public String getDividendDateString() {
         LocalDate date = dividendDate.toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate();
@@ -128,8 +141,8 @@ public class Company{
 
     @Override
     public String toString() {
-        return "Company [name=" + name + ", fullName=" + fullName + ", sector=" + sector
+        return "etoro.Company [name=" + name + ", fullName=" + fullName + ", sector=" + sector
                 + ", price=" + price  + ", dividendPerShare=" + dividendPerShare
-                + ", exDividendDate=" + getExDividendDate() + ", DividendDate=" + getDividendDate()  + "]";
+                + ", exDividendDate=" + getExDividendDateString() + ", DividendDate=" + getDividendDateString()  + "]";
     }
 }

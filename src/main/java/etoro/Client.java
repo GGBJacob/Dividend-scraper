@@ -1,3 +1,5 @@
+package etoro;
+
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,7 +24,18 @@ public class Client {
 
     private EtoroScraper server;
 
-
+    List<Comparator<Company>> comparators = List.of(
+            Comparator.comparing(Company::getFullName),
+            Comparator.comparingDouble((Company c) ->
+            {
+                double price = c.getPrice();
+                return price != 0 ? c.getDividendPerShare() / c.getPrice() : 0;
+            }).reversed(),
+            Comparator.comparingDouble(Company::getPrice).reversed(),
+            Comparator.comparing(Company::getExDividendDate),
+            Comparator.comparing(Company::getDividendDate),
+            Comparator.comparing(Company::getDividendPerShare).reversed()
+    );
 
     private void printTableHeader() {
 
@@ -71,8 +84,8 @@ public class Client {
                 company.fullName,
                 dividendReturn,
                 String.format("%.2f", company.price),
-                company.getExDividendDate(),
-                company.getDividendDate(),
+                company.getExDividendDateString(),
+                company.getDividendDateString(),
                 String.format("%.2f (%.2f)", company.dividendPerShare, company.dividendPerShare - company.dividendPerShare* dividendTax),
         };
 
@@ -102,6 +115,7 @@ public class Client {
     {
         if (currentTag.equals("NONE")){
             processedCompanies = new LinkedHashMap<>(companies);
+            sortCompanies();
             return;
         }
 
@@ -113,6 +127,7 @@ public class Client {
                         (e1, e2) -> e1,
                         LinkedHashMap::new
                 ));
+        sortCompanies();
     }
 
     private void toggleFiltering()
@@ -132,26 +147,9 @@ public class Client {
         filterCompaniesByTag();
     }
 
-    private void toggleSorting()
+    private void sortCompanies()
     {
-        List<Comparator<Company>> comparators = List.of(
-                Comparator.comparing(Company::getFullName),
-                Comparator.comparingDouble((Company c) ->
-                {
-                    double price = c.getPrice();
-                    return price != 0 ? c.getDividendPerShare() / c.getPrice() : 0;
-                }).reversed(),
-                Comparator.comparingDouble(Company::getPrice).reversed(),
-                Comparator.comparing(Company::getExDividendDate).reversed(),
-                Comparator.comparing(Company::getDividendDate).reversed(),
-                Comparator.comparing(Company::getDividendPerShare).reversed()
-        );
-
-        currentComparator += 1;
-        if (currentComparator >= comparators.size())
-            currentComparator = 0;
-
-        processedCompanies = companies.values()
+        processedCompanies = processedCompanies.values()
                 .stream()
                 .sorted(comparators.get(currentComparator))
                 .collect(Collectors.toMap(
@@ -160,6 +158,14 @@ public class Client {
                         (e1, e2) -> e1,
                         LinkedHashMap::new
                 ));
+    }
+
+    private void toggleSorting()
+    {
+        currentComparator += 1;
+        if (currentComparator >= comparators.size())
+            currentComparator = 0;
+        sortCompanies();
     }
 
     public void extractTags()
@@ -185,7 +191,7 @@ public class Client {
         StringBuilder output = new StringBuilder();
         final int padding = 22;
         output.append("\t".repeat(padding));
-        int totalPages = (companies.size() + pageSize - 1) / pageSize;
+        int totalPages = (processedCompanies.size() + pageSize - 1) / pageSize;
         output.append("Page " + (pageIndex + 1) + "/" + totalPages);
         output.append(" ".repeat(padding));
         System.out.println(output);
@@ -193,6 +199,7 @@ public class Client {
 
     private void printStockTable(int page)
     {
+        clearConsole();
         printTableHeader();
         List<Company> allCompanies = new ArrayList<>(processedCompanies.values());
         int from = page * pageSize;
@@ -226,10 +233,24 @@ public class Client {
         }
     }
 
+    public static void clearConsole() {
+        try {
+            if (System.getProperty("os.name").contains("Windows")) {
+                new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
+            } else {
+                System.out.print("\033[H\033[2J");
+                System.out.flush();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public void startClient(){
         this.server = new EtoroScraper();
         server.loadCompanies();
         this.companies = new LinkedHashMap<>(server.companies);
+        this.processedCompanies = new LinkedHashMap<>(companies);
         toggleSorting();
         extractTags();
 
@@ -261,14 +282,14 @@ public class Client {
 
                 case 'd':
                 {
-                    int pages = (companies.size() + pageSize - 1) / pageSize;
-                    pageIndex = min(pages, pageIndex + 1);
+                    int pages = (processedCompanies.size() + pageSize - 1) / pageSize;
+                    pageIndex = min(pages-1, pageIndex+1);
                     break;
                 }
 
                 case 'w':
                 {
-                    int pages = (companies.size() + pageSize - 1) / pageSize;
+                    int pages = (processedCompanies.size() + pageSize - 1) / pageSize;
                     System.out.print("Go to page: ");
                     pageIndex = readInt(1, pages)-1;
                     break;

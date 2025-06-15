@@ -5,6 +5,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Company{
 
@@ -114,7 +115,7 @@ public class Company{
         return dividendDate;
     }
 
-
+    @JsonIgnore
     public String getExDividendDateString() {
         LocalDate date = exDividendDate.toInstant()
                 .atZone(ZoneId.systemDefault())
@@ -123,6 +124,7 @@ public class Company{
         return date.format(formatter);
     }
 
+    @JsonIgnore
     public String getDividendDateString() {
         LocalDate date = dividendDate.toInstant()
                 .atZone(ZoneId.systemDefault())
@@ -143,6 +145,6 @@ public class Company{
     public String toString() {
         return "etoro.Company [name=" + name + ", fullName=" + fullName + ", sector=" + sector
                 + ", price=" + price  + ", dividendPerShare=" + dividendPerShare
-                + ", exDividendDate=" + getExDividendDateString() + ", DividendDate=" + getDividendDateString()  + "]";
+                + ", exDividendDate=" + getExDividendDate() + ", DividendDate=" + getDividendDate()  + "]";
     }
 }

@@ -1,6 +1,7 @@
 package etoro;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -145,6 +146,7 @@ public class Client {
         else
             currentTag = tagsList.get(tagIndex+1);
         filterCompaniesByTag();
+        pageIndex = 0;
     }
 
     private void sortCompanies()
@@ -166,6 +168,7 @@ public class Client {
         if (currentComparator >= comparators.size())
             currentComparator = 0;
         sortCompanies();
+        pageIndex = 0;
     }
 
     public void extractTags()
@@ -183,6 +186,7 @@ public class Client {
         System.out.println(" [w] - enter page index");
         System.out.println(" [s] - toggle sorting (" + rowTitles[currentComparator] + ")");
         System.out.println(" [f] - toggle filtering (" + currentTag +")");
+        System.out.println(" [x] - edit favourites");
         System.out.println(" [q] - quit");
     }
 
@@ -215,6 +219,90 @@ public class Client {
         printInstructions();
     }
 
+    private int levensteinDistance(String a, String b)
+    {
+        a = a.toLowerCase();
+        b = b.toLowerCase();
+
+        BiFunction<Character, Character, Integer> substitutionCost = (c1,c2) -> c1.equals(c2) ? 0 : 1;
+
+        int[][] dp = new int[a.length()+1][b.length()+1];
+
+        for (int i = 0; i <= a.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int i = 0; i <= b.length(); i++) {
+            dp[0][i] = i;
+        }
+
+        for(int i = 1; i <= a.length(); i++)
+        {
+            for(int j = 1; j <= b.length(); j++)
+            {
+                dp[i][j] = min(min(dp[i-1][j-1] + substitutionCost.apply(a.charAt(i-1), b.charAt(j-1)),
+                        dp[i-1][j] + 1), dp[i][j-1] + 1);
+            }
+        }
+
+        return dp[a.length()][b.length()];
+    }
+
+    private void toggleFavorites() {
+        clearConsole();
+        System.out.println("Enter company name and I'll try to find it!");
+        Scanner scanner = new Scanner(System.in);
+        String line = scanner.nextLine();
+        line = line.strip();
+
+        String bestMatch = "";
+        int bestScore = Integer.MAX_VALUE;
+
+        for(String companyName: companies.keySet())
+        {
+            if (bestScore == 0) {
+                break;
+            }
+
+            if (companyName.equalsIgnoreCase(line))
+            {
+                bestMatch = companyName;
+                bestScore = 0;
+                break;
+            }
+
+            for (String token : companyName.split(" ")) {
+                int score = levensteinDistance(line, token);
+                if (score < bestScore) {
+                    bestMatch = companyName;
+                    bestScore = score;
+                }
+            }
+
+        }
+
+        System.out.println("Is this your company? " + bestMatch);
+        System.out.println(" [y] - Yes, add to favourites");
+        System.out.println(" [n] - No, search again");
+        System.out.println(" [q] - Quit");
+        do {
+            line = scanner.nextLine();
+
+            switch (line.charAt(0)) {
+                case 'y':
+                {
+
+                }
+
+                case 'n':
+                {
+
+                }
+                default:
+                    break;
+            }
+
+        } while (line.charAt(0) != 'q');
+    }
 
     private int readInt(int min, int max) {
         Scanner scanner = new Scanner(System.in);
@@ -307,6 +395,12 @@ public class Client {
                     break;
                 }
 
+                case 'x':
+                {
+                    toggleFavorites();
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -315,5 +409,6 @@ public class Client {
         }
 
     }
+
 
 }

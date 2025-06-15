@@ -1,5 +1,8 @@
 package etoro;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -21,6 +24,7 @@ public class Company{
     public float price;
     public String marketHref;
     public float dividendPerShare;
+    public BigDecimal marketCap;
     public Set<String> tags;
 
     public Company(){}
@@ -35,6 +39,7 @@ public class Company{
         private Date dividendDate;
         private float price;
         private float dividendPerShare;
+        public BigDecimal marketCap;
         private Set<String> tags = new HashSet<>();
 
         public Builder(String name, String fullName) {
@@ -85,6 +90,16 @@ public class Company{
 
         public Builder marketHref(String marketHref) {
             this.marketHref = marketHref;
+            return this;
+        }
+
+        public Builder marketCap(String marketCap) {
+            this.marketCap = parseMarketCap(marketCap);
+            return this;
+        }
+
+        public Builder marketCap(BigDecimal marketCap) {
+            this.marketCap = marketCap;
             return this;
         }
 
@@ -141,10 +156,56 @@ public class Company{
 
     public double getDividendPerShare() {return dividendPerShare;}
 
+    public BigDecimal getMarketCap() {
+        return marketCap;
+    }
+
     @Override
     public String toString() {
         return "etoro.Company [name=" + name + ", fullName=" + fullName + ", sector=" + sector
                 + ", price=" + price  + ", dividendPerShare=" + dividendPerShare
                 + ", exDividendDate=" + getExDividendDate() + ", DividendDate=" + getDividendDate()  + "]";
+    }
+
+    @JsonIgnore
+    public static BigDecimal parseMarketCap(String marketCapString) {
+        marketCapString = marketCapString.strip().toUpperCase();
+        BigDecimal multiplier = BigDecimal.ONE;
+
+        if (marketCapString.endsWith("T"))
+        {
+            multiplier = new BigDecimal("1000000000000");
+        }
+        else if (marketCapString.endsWith("B"))
+        {
+            multiplier = new BigDecimal("1000000000");
+        }
+        else if (marketCapString.endsWith("M"))
+        {
+            multiplier = new BigDecimal("1000000");
+        }
+        marketCapString = marketCapString.substring(0,marketCapString.length()-1);
+        return new BigDecimal(marketCapString).multiply(multiplier);
+    }
+
+    @JsonIgnore
+    public String getMarketCapString()
+    {
+        String[] suffixes = {"", "K", "M", "B", "T"};
+        BigDecimal thousand = BigDecimal.valueOf(1000);
+
+        BigDecimal marketCapValue = marketCap;
+        int marketCapSuffixIndex = 0;
+
+
+        while (marketCapValue.compareTo(thousand) >= 0 && marketCapSuffixIndex < suffixes.length)
+        {
+            marketCapValue = marketCapValue.divide(thousand);
+            marketCapSuffixIndex += 1;
+        }
+
+        marketCapValue = marketCapValue.setScale(2, RoundingMode.HALF_UP);
+        String marketCapString = marketCapValue.toString();
+        return marketCapString + suffixes[marketCapSuffixIndex];
     }
 }

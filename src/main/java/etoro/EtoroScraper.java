@@ -8,6 +8,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
@@ -26,30 +27,68 @@ public class EtoroScraper
     private ProgressTracker progressTracker;
 
 
-    private void fetchCompanyPrice(String href, String companyName)
+    private void fetchCompanyDetails(String href, String companyName)
     {
         String link = fullUrl + href;
         Document marketPage;
+
         try {
             marketPage = Jsoup.connect(link).timeout(10000).get();
-            String rawPrice = marketPage.select("span[data-automation-id=AssetShortInfoPrice]").text().replace(",", "");
-            updateCompanyPrice(companyName,Float.parseFloat(rawPrice));
+            float price = fetchCompanyPrice(marketPage);
+
+            BigDecimal marketCap = fetchCompanyMarketCap(marketPage);
+            updateCompanyDetails(companyName,price, marketCap);
         }catch (IOException e)
         {
             System.out.println("Couldn't connect to " + link);
-            updateCompanyPrice(companyName,0);
+            updateCompanyDetails(companyName,0, BigDecimal.ZERO);
         }
         catch (Exception e)
         {
-            System.out.println("Couldn't fetch "+ companyName +" price!");
-            updateCompanyPrice(companyName,0);
+            System.out.println("Failed to fetch "+ companyName +" details!");
+            updateCompanyDetails(companyName,0, BigDecimal.ZERO);
             System.out.println(e.getMessage());
         }
     }
 
-    private synchronized void updateCompanyPrice(String companyName, float price)
+    private float fetchCompanyPrice(Document marketPage)
     {
-        companies.get(companyName).price = price;
+        String rawPrice = marketPage.select("span[data-automation-id=AssetShortInfoPrice]").text().replace(",", "");
+        return Float.parseFloat(rawPrice);
+    }
+
+    private Elements fetchCompanyStats(Document marketPage)
+    {
+        Element statsAnchor = marketPage.getElementById("stats");
+        Element container = statsAnchor.parent();
+        Elements rows = container.getElementsByClass("Table_row___1rR3");
+        return rows;
+    }
+
+    private BigDecimal fetchCompanyMarketCap(Document marketPage)
+    {
+        Elements rows = fetchCompanyStats(marketPage);
+        try{
+            for (Element row : rows)
+            {
+                Element label = row.selectFirst("div.ets-plain-text");
+                if(label != null && label.text().equalsIgnoreCase("Market Cap")) {
+                    Element value = row.selectFirst("div.ets-number");
+                    if(value != null) {
+                        return Company.parseMarketCap(value.text());
+                    }
+                }
+            }
+        }
+        catch (Exception ignored){}
+        return BigDecimal.ZERO;
+    }
+
+    private synchronized void updateCompanyDetails(String companyName, float price, BigDecimal marketCap)
+    {
+        Company company = companies.get(companyName);
+        company.price = price;
+        company.marketCap = marketCap;
         progressTracker.incrementCompaniesProcessed();
     }
 
@@ -116,7 +155,7 @@ public class EtoroScraper
                 Company company = extractCompany(row);
                 if (company != null) {
                     companies.put(company.fullName, company);
-                    executor.submit(() -> fetchCompanyPrice(company.marketHref, company.fullName));
+                    executor.submit(() -> fetchCompanyDetails(company.marketHref, company.fullName));
                 }
             }
             catch (Exception ignored)
@@ -173,7 +212,7 @@ public class EtoroScraper
             Company extractedCompany = extractCompany(row);
             if (extractedCompany != null) {
                 companies.put(extractedCompany.fullName, extractedCompany);
-                executor.submit(() -> fetchCompanyPrice(extractedCompany.marketHref, extractedCompany.fullName));
+                executor.submit(() -> fetchCompanyDetails(extractedCompany.marketHref, extractedCompany.fullName));
             }
         }
 

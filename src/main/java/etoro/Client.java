@@ -12,7 +12,7 @@ public class Client {
 
     private Map<String,Company> companies = new LinkedHashMap<>();
     private Map<String, Company> processedCompanies = new LinkedHashMap<>();
-    private final int[] columnWidths = {50, 30, 20, 20, 20, 35};
+    private final int[] columnWidths = {50, 30, 20, 20, 20, 35, 20};
 
     private int pageIndex = 0;
     private final int pageSize = 15;
@@ -21,7 +21,7 @@ public class Client {
     private String currentTag = "NONE";
     private int currentComparator = 0;
 
-    private String[] rowTitles = {"Company", "Dividend Yield (after tax)", "Price", "ExDividend date", "Dividend date", "Dividend per share (after tax)" };
+    private String[] rowTitles = {"Company", "Dividend Yield (after tax)", "Price", "ExDividend date", "Dividend date", "Dividend per share (after tax)", "Market Cap" };
 
     private EtoroScraper server;
 
@@ -35,7 +35,8 @@ public class Client {
             Comparator.comparingDouble(Company::getPrice).reversed(),
             Comparator.comparing(Company::getExDividendDate),
             Comparator.comparing(Company::getDividendDate),
-            Comparator.comparing(Company::getDividendPerShare).reversed()
+            Comparator.comparing(Company::getDividendPerShare).reversed(),
+            Comparator.comparing(Company::getMarketCap).reversed()
     );
 
     private void printTableHeader() {
@@ -88,6 +89,7 @@ public class Client {
                 company.getExDividendDateString(),
                 company.getDividendDateString(),
                 String.format("%.2f (%.2f)", company.dividendPerShare, company.dividendPerShare - company.dividendPerShare* dividendTax),
+                company.getMarketCapString()
         };
 
         StringBuilder row = new StringBuilder();
@@ -168,7 +170,6 @@ public class Client {
         if (currentComparator >= comparators.size())
             currentComparator = 0;
         sortCompanies();
-        pageIndex = 0;
     }
 
     public void extractTags()

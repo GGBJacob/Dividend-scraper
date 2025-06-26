@@ -130,6 +130,15 @@ public class Company{
         return dividendDate;
     }
 
+    public void addTag(String tag) {
+        this.tags.add(tag);
+    }
+
+    public void removeTag(String tag)
+    {
+        this.tags.remove(tag);
+    }
+
     @JsonIgnore
     public String getExDividendDateString() {
         LocalDate date = exDividendDate.toInstant()

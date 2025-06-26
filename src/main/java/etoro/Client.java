@@ -1,12 +1,18 @@
 package etoro;
 
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DatabindException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static java.lang.Math.*;
 
 public class Client {
 
@@ -39,6 +45,9 @@ public class Client {
             Comparator.comparing(Company::getMarketCap).reversed()
     );
 
+    private List<String> favourites = new ArrayList<>();
+
+
     private void printTableHeader() {
 
         StringBuilder header = new StringBuilder();
@@ -70,6 +79,7 @@ public class Client {
         final String GREEN = "\u001B[32m";
         final String YELLOW = "\u001B[33m";
         final String BLUE = "\u001B[34m";
+        final String HOT_PINK = "\u001B[38;2;255;105;180m";
         String dividendReturn;
         float dividendTax = 0.1f;
 
@@ -107,7 +117,9 @@ public class Client {
                 row.append(" | ");
         }
 
-        if(company.tags.contains("NEW"))
+        if(company.tags.contains("FAVOURITE"))
+            System.out.println(HOT_PINK + row + RESET);
+        else if(company.tags.contains("NEW"))
             System.out.println(GREEN + row + RESET);
         else
             System.out.println(row);
@@ -194,10 +206,11 @@ public class Client {
     private void printPageNumber()
     {
         StringBuilder output = new StringBuilder();
-        final int padding = 22;
-        output.append("\t".repeat(padding));
         int totalPages = (processedCompanies.size() + pageSize - 1) / pageSize;
-        output.append("Page " + (pageIndex + 1) + "/" + totalPages);
+        String pageText = "Page " +  (pageIndex + 1) + "/" + totalPages;
+        final int padding = Arrays.stream(columnWidths).sum()/2 + columnWidths.length - 1 - pageText.length()/2;
+        output.append(" ".repeat(padding));
+        output.append(pageText);
         output.append(" ".repeat(padding));
         System.out.println(output);
     }
@@ -249,60 +262,84 @@ public class Client {
     }
 
     private void toggleFavorites() {
-        clearConsole();
-        System.out.println("Enter company name and I'll try to find it!");
-        Scanner scanner = new Scanner(System.in);
-        String line = scanner.nextLine();
-        line = line.strip();
 
-        String bestMatch = "";
-        int bestScore = Integer.MAX_VALUE;
+        while(true) {
+            clearConsole();
+            System.out.println("Enter company name and I'll try to find it! (or press q to exit)");
+            Scanner scanner = new Scanner(System.in);
+            String line = scanner.nextLine();
+            line = line.strip();
 
-        for(String companyName: companies.keySet())
-        {
-            if (bestScore == 0) {
-                break;
-            }
+            if (line.equalsIgnoreCase("q"))
+                return;
 
-            if (companyName.equalsIgnoreCase(line))
-            {
-                bestMatch = companyName;
-                bestScore = 0;
-                break;
-            }
+            String bestMatch = "";
+            int bestScore = Integer.MAX_VALUE;
 
-            for (String token : companyName.split(" ")) {
-                int score = levensteinDistance(line, token);
-                if (score < bestScore) {
-                    bestMatch = companyName;
-                    bestScore = score;
-                }
-            }
-
-        }
-
-        System.out.println("Is this your company? " + bestMatch);
-        System.out.println(" [y] - Yes, add to favourites");
-        System.out.println(" [n] - No, search again");
-        System.out.println(" [q] - Quit");
-        do {
-            line = scanner.nextLine();
-
-            switch (line.charAt(0)) {
-                case 'y':
-                {
-
-                }
-
-                case 'n':
-                {
-
-                }
-                default:
+            for (String companyName : companies.keySet()) {
+                if (bestScore == 0) {
                     break;
+                }
+
+                if (companyName.equalsIgnoreCase(line)) {
+                    bestMatch = companyName;
+                    bestScore = 0;
+                    break;
+                }
+
+                for (String token : companyName.split(" ")) {
+                    int score = levensteinDistance(line, token);
+                    if (score < bestScore) {
+                        bestMatch = companyName;
+                        bestScore = score;
+                    }
+                }
+
             }
 
-        } while (line.charAt(0) != 'q');
+            System.out.println("Found company: " + bestMatch);
+            boolean exists = false;
+            if (favourites.contains(bestMatch)) {
+                exists = true;
+                System.out.println("Company already is in the list. Remove from favourites?");
+                System.out.println(" [y] - Yes, remove from favourites");
+                System.out.println(" [n] - No, search again");
+                System.out.println(" [q] - Quit");
+            } else {
+                System.out.println("Add to favourites?");
+                System.out.println(" [y] - Yes, add to favourites");
+                System.out.println(" [n] - No, search again");
+                System.out.println(" [q] - Quit");
+            }
+
+            while(true) {
+                line = scanner.nextLine().strip().toLowerCase();
+
+                if (line.equals("q")) {
+                    return;
+                }
+
+                if (line.equals("y"))
+                {
+                    if (exists) {
+                        favourites.remove(bestMatch);
+                        companies.get(bestMatch).removeTag("FAVOURITE");
+                        System.out.println("Removed " + bestMatch + " from favourites");
+                    } else {
+                        favourites.add(bestMatch);
+                        companies.get(bestMatch).addTag("FAVOURITE");
+                        System.out.println("Added " + bestMatch + " to favourites");
+                    }
+                    break;
+                }
+
+                else if (line.equals("n")){
+                    break;
+                }
+                System.out.println("Please enter y, n or q.");
+
+            }
+        }
     }
 
     private int readInt(int min, int max) {
@@ -335,11 +372,43 @@ public class Client {
         }
     }
 
+    private void loadFavourites()
+    {
+        System.out.println("Loading favourites...");
+        ObjectMapper mapper = new ObjectMapper();
+        try{
+            TypeReference<List<String>> typeReference = new TypeReference<>() {};
+            this.favourites = mapper.readValue(new File("favourites.txt"), typeReference);
+            for (String company : favourites)
+            {
+                this.companies.get(company).addTag("FAVOURITE");
+            }
+            System.out.println("Favourites loaded successfully.");
+        }catch (Exception e) {
+            System.out.println("Failed to load favourites!");
+        }
+    }
+
+    private void saveFavourites()
+    {
+        System.out.println("Saving favourites...");
+        ObjectMapper mapper = new ObjectMapper();
+        try{
+            mapper.writeValue(new File("favourites.txt"), favourites);
+            System.out.println("Favourites saved successfully.");
+        }
+        catch(Exception e)
+        {
+            System.out.println("Failed to save favourites!");
+        }
+    }
+
     public void startClient(){
         this.server = new EtoroScraper();
         server.loadCompanies();
         this.companies = new LinkedHashMap<>(server.companies);
         this.processedCompanies = new LinkedHashMap<>(companies);
+        loadFavourites();
         toggleSorting();
         extractTags();
 
@@ -360,8 +429,10 @@ public class Client {
 
             switch(input)
             {
-                case 'q':
+                case 'q': {
+                    saveFavourites();
                     return;
+                }
 
                 case 'a':
                 {
@@ -399,16 +470,22 @@ public class Client {
                 case 'x':
                 {
                     toggleFavorites();
+                    if(favourites.isEmpty())
+                    {
+                        currentTag = "NONE";
+                        tags.remove("FAVOURITE");
+                        filterCompaniesByTag();
+                    }else{
+                        extractTags();
+                    }
                     break;
                 }
 
                 default:
                     break;
             }
-
             printStockTable(pageIndex);
         }
-
     }
 
 
